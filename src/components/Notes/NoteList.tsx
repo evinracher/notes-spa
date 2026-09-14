@@ -1,5 +1,5 @@
 import Note from './Note'
-import type { NoteListProps } from '../../type/note'
+import type { NoteListProps } from '../../types/note'
 import styles from './NoteList.module.css'
 
 function NoteList({ notes, onResize, onMove, onDrop, onDragCancel }: NoteListProps) {

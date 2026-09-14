@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
-import type { NoteData, NotePosition, NoteProps } from '../../type/note'
+import type { NoteData, NotePosition, NoteProps } from '../../types/note'
 import styles from './Note.module.css'
 
 function Note({ note, onResize, onMove, onDrop, onDragCancel }: NoteProps) {

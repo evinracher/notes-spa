@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { FiTrash2 } from 'react-icons/fi'
-import type { NoteData, NotePosition } from '../type/note'
+import type { NoteData, NotePosition } from '../types/note'
 import { NoteList } from './Notes'
 import styles from './Board.module.css'
 
