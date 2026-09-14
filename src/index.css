@@ -12,47 +12,6 @@ body {
   margin: 0;
 }
 
-main {
-  padding: 24px;
-}
-
 button {
-  padding: 10px 16px;
   font: inherit;
-  cursor: pointer;
-}
-
-button:disabled {
-  cursor: default;
-}
-
-.board {
-  position: relative;
-  min-width: 700px;
-  height: calc(100vh - 180px);
-  min-height: 400px;
-  margin-top: 16px;
-  background: #f3f3f3;
-  outline: 1px solid #ccc;
-}
-
-.board-creating {
-  cursor: crosshair;
-  user-select: none;
-}
-
-.note-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.note-list > li {
-  position: absolute;
-}
-
-.note {
-  margin: 0;
-  padding: 16px;
-  background: #fff3a3;
 }
