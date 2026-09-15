@@ -11,8 +11,12 @@ export type NoteData = {
   }
 }
 
+export type NoteDraft = Pick<NoteData, 'x' | 'y' | 'size'>
+
 export type NoteProps = {
   note: NoteData
+  isOverTrash: boolean
+  onTextChange: (text: string) => void
   onResize: (size: NoteData['size']) => void
   onMove: (position: NotePosition) => void
   onDrop: (position: NotePosition) => void
@@ -21,6 +25,8 @@ export type NoteProps = {
 
 export type NoteListProps = {
   notes: NoteData[]
+  trashNoteId: string | null
+  onTextChange: (id: string, text: string) => void
   onResize: (id: string, size: NoteData['size']) => void
   onMove: (id: string, position: NotePosition) => void
   onDrop: (id: string, position: NotePosition) => void

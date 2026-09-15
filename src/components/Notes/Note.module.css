@@ -4,6 +4,11 @@
   background: #fff3a3;
 }
 
+.overTrash {
+  background: #ef9a9a;
+  opacity: 0.65;
+}
+
 .drag {
   display: block;
   width: 100%;
@@ -25,11 +30,30 @@
   position: absolute;
   top: 16px;
   left: 16px;
-  max-width: calc(100% - 32px);
+  width: calc(100% - 32px);
   margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1.4;
+  resize: none;
+  overflow: auto;
   overflow-wrap: anywhere;
   cursor: text;
   user-select: text;
+}
+
+.text:focus-visible {
+  outline: 1px dashed #777;
+  outline-offset: 2px;
+}
+
+.text::placeholder {
+  color: #666;
+  opacity: 1;
 }
 
 .resize {

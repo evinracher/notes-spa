@@ -1,10 +1,12 @@
-import { useRef } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
 import type { NoteData, NotePosition, NoteProps } from '../../types/note'
 import styles from './Note.module.css'
 
-function Note({ note, onResize, onMove, onDrop, onDragCancel }: NoteProps) {
+function Note({ note, isOverTrash, onTextChange, onResize, onMove, onDrop, onDragCancel }: NoteProps) {
   const { text, size } = note
+  const [isEditing, setIsEditing] = useState(false)
+  const textRef = useRef<HTMLTextAreaElement>(null)
   const dragStart = useRef<{
     clientX: number
     clientY: number
@@ -16,6 +18,17 @@ function Note({ note, onResize, onMove, onDrop, onDragCancel }: NoteProps) {
     y: number
     size: NoteData['size']
   } | null>(null)
+
+  useLayoutEffect(() => {
+    const textarea = textRef.current
+    if (!textarea) return
+
+    textarea.style.height = 'auto'
+    textarea.style.overflowY = 'hidden'
+    // Leave one pixel for browsers that round fractional line heights.
+    textarea.style.height = `${Math.min(textarea.scrollHeight + 1, size.height - 32)}px`
+    textarea.style.overflowY = 'auto'
+  }, [text, size.width, size.height])
 
   function handleDragStart(event: PointerEvent<HTMLButtonElement>) {
     if (event.button !== 0 || !event.isPrimary) return
@@ -146,11 +159,14 @@ function Note({ note, onResize, onMove, onDrop, onDragCancel }: NoteProps) {
   }
 
   return (
-    <div className={styles.note} style={{ width: size.width, height: size.height }}>
+    <div
+      className={`${styles.note}${isOverTrash ? ` ${styles.overTrash}` : ''}`}
+      style={{ width: size.width, height: size.height }}
+    >
       <button
         type="button"
         className={styles.drag}
-        aria-label={`${text}. Drag or use arrow keys to move. Press Enter to drop.`}
+        aria-label={`${text || 'Empty note'}. Drag or use arrow keys to move. Press Enter to drop.`}
         onPointerDown={handleDragStart}
         onPointerMove={handleDragMove}
         onPointerUp={handleDragEnd}
@@ -159,7 +175,18 @@ function Note({ note, onResize, onMove, onDrop, onDragCancel }: NoteProps) {
         onKeyDown={handleMoveKeyDown}
         onBlur={handleDragCancel}
       />
-      <p className={styles.text}>{text}</p>
+      <textarea
+        ref={textRef}
+        className={styles.text}
+        aria-label="Note text"
+        placeholder="Click to edit note text"
+        value={text}
+        rows={1}
+        readOnly={!isEditing}
+        onFocus={() => setIsEditing(true)}
+        onBlur={() => setIsEditing(false)}
+        onChange={(event) => onTextChange(event.target.value)}
+      />
       <button
         type="button"
         className={styles.resize}

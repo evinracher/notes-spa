@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import type { MouseEvent } from 'react'
+import type { MouseEvent, PointerEvent } from 'react'
 import { FiTrash2 } from 'react-icons/fi'
-import type { NoteData, NotePosition } from '../types/note'
+import { loadNotes, NOTES_STORAGE_KEY } from '../notesStorage'
+import type { NoteData, NoteDraft, NotePosition } from '../types/note'
 import { NoteList } from './Notes'
 import styles from './Board.module.css'
 
@@ -12,46 +13,141 @@ const initialNotes: NoteData[] = [
 ]
 
 function Board() {
-  const [notes, setNotes] = useState(initialNotes)
+  const [notes, setNotes] = useState(() => loadNotes(initialNotes))
   const [isCreating, setIsCreating] = useState(false)
-  const [isOverTrash, setIsOverTrash] = useState(false)
+  const [draftNote, setDraftNote] = useState<NoteDraft | null>(null)
+  const creationStart = useRef<(NotePosition & {
+    startedAt: number
+    pointerId: number
+    clientX: number
+    clientY: number
+  }) | null>(null)
+  const creationTimer = useRef<number | undefined>(undefined)
+  const [trashNoteId, setTrashNoteId] = useState<string | null>(null)
+  const [storageError, setStorageError] = useState(false)
+  const isOverTrash = trashNoteId !== null
   const createButtonRef = useRef<HTMLButtonElement>(null)
   const placementButtonRef = useRef<HTMLButtonElement>(null)
   const boardRef = useRef<HTMLDivElement>(null)
   const trashRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    function saveNotes() {
+      try {
+        localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes))
+        setStorageError(false)
+      } catch {
+        setStorageError(true)
+      }
+    }
+
+    const timeout = window.setTimeout(saveNotes, 200)
+    window.addEventListener('pagehide', saveNotes)
+    return () => {
+      window.clearTimeout(timeout)
+      window.removeEventListener('pagehide', saveNotes)
+    }
+  }, [notes])
+
+  useEffect(() => {
     const button = isCreating ? placementButtonRef.current : createButtonRef.current
     button?.focus()
   }, [isCreating])
 
-  function handlePlaceNote(event: MouseEvent<HTMLButtonElement>) {
-    const board = event.currentTarget
-    const bounds = board.getBoundingClientRect()
+  useEffect(() => () => window.clearTimeout(creationTimer.current), [])
+
+  function createNote(bounds: NoteDraft) {
     const note: NoteData = {
       id: crypto.randomUUID(),
-      text: 'New note',
-      x: event.clientX - bounds.left,
-      y: event.clientY - bounds.top,
-      size: { width: 200, height: 200 },
+      text: '',
+      ...bounds,
     }
-
-    if (event.detail === 0) {
-      note.x = (board.clientWidth - note.size.width) / 2
-      note.y = (board.clientHeight - note.size.height) / 2
-    }
-
-    note.x = Math.max(
-      0,
-      Math.min(note.x, board.clientWidth - note.size.width),
-    )
-    note.y = Math.max(
-      0,
-      Math.min(note.y, board.clientHeight - note.size.height),
-    )
 
     setNotes((currentNotes) => [...currentNotes, note])
     setIsCreating(false)
+    clearDraft()
+  }
+
+  function handlePlaceNote(event: MouseEvent<HTMLButtonElement>) {
+    if (event.detail !== 0) return
+
+    const board = event.currentTarget
+    createNote({
+      x: (board.clientWidth - 200) / 2,
+      y: (board.clientHeight - 200) / 2,
+      size: { width: 200, height: 200 },
+    })
+  }
+
+  function getCreationBounds(board: HTMLButtonElement, minimumSize = 0): NoteDraft | null {
+    const start = creationStart.current
+    if (!start || !board.hasPointerCapture(start.pointerId)) return null
+
+    const bounds = board.getBoundingClientRect()
+    const x = Math.max(0, Math.min(start.clientX - bounds.left, board.clientWidth))
+    const y = Math.max(0, Math.min(start.clientY - bounds.top, board.clientHeight))
+    const dx = x - start.x
+    const dy = y - start.y
+    const resized = performance.now() - start.startedAt > 200
+    const width = resized ? Math.max(minimumSize, Math.abs(dx)) : 200
+    const height = resized ? Math.max(minimumSize, Math.abs(dy)) : 200
+
+    return {
+      x: Math.max(0, Math.min(resized && dx < 0 ? start.x - width : start.x, board.clientWidth - width)),
+      y: Math.max(0, Math.min(resized && dy < 0 ? start.y - height : start.y, board.clientHeight - height)),
+      size: { width, height },
+    }
+  }
+
+  function handleCreationStart(event: PointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0 || !event.isPrimary || creationStart.current) return
+
+    event.preventDefault()
+    const board = event.currentTarget
+    const bounds = board.getBoundingClientRect()
+    creationStart.current = {
+      x: event.clientX - bounds.left,
+      y: event.clientY - bounds.top,
+      startedAt: performance.now(),
+      pointerId: event.pointerId,
+      clientX: event.clientX,
+      clientY: event.clientY,
+    }
+    board.setPointerCapture(event.pointerId)
+    setDraftNote(getCreationBounds(board))
+    creationTimer.current = window.setTimeout(() => {
+      setDraftNote(getCreationBounds(board))
+    }, 201)
+  }
+
+  function handleCreationMove(event: PointerEvent<HTMLButtonElement>) {
+    const start = creationStart.current
+    if (!start || event.pointerId !== start.pointerId) return
+
+    start.clientX = event.clientX
+    start.clientY = event.clientY
+    const bounds = getCreationBounds(event.currentTarget)
+    if (bounds) setDraftNote(bounds)
+  }
+
+  function handleCreationEnd(event: PointerEvent<HTMLButtonElement>) {
+    const start = creationStart.current
+    if (!start || event.pointerId !== start.pointerId) return
+
+    start.clientX = event.clientX
+    start.clientY = event.clientY
+    const bounds = getCreationBounds(event.currentTarget, 100)
+    if (bounds) createNote(bounds)
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  function clearDraft() {
+    window.clearTimeout(creationTimer.current)
+    creationTimer.current = undefined
+    creationStart.current = null
+    setDraftNote(null)
   }
 
   function handleResizeNote(id: string, size: NoteData['size']) {
@@ -91,7 +187,7 @@ function Board() {
       top < trashBounds.bottom &&
       top + note.size.height > trashBounds.top
 
-    setIsOverTrash(!drop && overlapsTrash)
+    setTrashNoteId(!drop && overlapsTrash ? id : null)
     setNotes((currentNotes) =>
       drop && overlapsTrash
         ? currentNotes.filter((note) => note.id !== id)
@@ -110,15 +206,20 @@ function Board() {
         disabled={isCreating}
         onClick={() => setIsCreating(true)}
       >
-        {isCreating ? 'Click the board to place note' : 'Create note'}
+        {isCreating ? 'Click to place or hold to resize' : 'Create note'}
       </button>
+      {storageError && <p role="status">Notes could not be saved in this browser.</p>}
       <div ref={boardRef} className={styles.board}>
         <NoteList
           notes={notes}
+          trashNoteId={trashNoteId}
+          onTextChange={(id, text) => setNotes((currentNotes) =>
+            currentNotes.map((note) => note.id === id ? { ...note, text } : note),
+          )}
           onResize={handleResizeNote}
           onMove={handleMoveNote}
           onDrop={(id, position) => handleMoveNote(id, position, true)}
-          onDragCancel={() => setIsOverTrash(false)}
+          onDragCancel={() => setTrashNoteId(null)}
         />
         <div
           ref={trashRef}
@@ -128,13 +229,30 @@ function Board() {
         >
           <FiTrash2 size={32} aria-hidden="true" />
         </div>
+        {draftNote && (
+          <div
+            className={styles.preview}
+            style={{
+              left: draftNote.x,
+              top: draftNote.y,
+              width: draftNote.size.width,
+              height: draftNote.size.height,
+            }}
+            aria-hidden="true"
+          />
+        )}
         {isCreating && (
           <button
             ref={placementButtonRef}
             type="button"
             className={styles.placement}
-            aria-label="Click or tap to place a note. Press Enter or Space to place it in the center."
+            aria-label="Release within 200 milliseconds for the default size, or hold longer and drag to resize. Press Enter or Space to place a note in the center."
             onClick={handlePlaceNote}
+            onPointerDown={handleCreationStart}
+            onPointerMove={handleCreationMove}
+            onPointerUp={handleCreationEnd}
+            onPointerCancel={clearDraft}
+            onLostPointerCapture={clearDraft}
           />
         )}
       </div>
