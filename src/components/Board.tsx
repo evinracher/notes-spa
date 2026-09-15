@@ -22,7 +22,6 @@ function Board() {
     clientX: number
     clientY: number
   }) | null>(null)
-  const creationTimer = useRef<number | undefined>(undefined)
   const [trashNoteId, setTrashNoteId] = useState<string | null>(null)
   const [storageError, setStorageError] = useState(false)
   const isOverTrash = trashNoteId !== null
@@ -54,8 +53,6 @@ function Board() {
     button?.focus()
   }, [isCreating])
 
-  useEffect(() => () => window.clearTimeout(creationTimer.current), [])
-
   function createNote(bounds: NoteDraft) {
     const note: NoteData = {
       id: crypto.randomUUID(),
@@ -79,7 +76,7 @@ function Board() {
     })
   }
 
-  function getCreationBounds(board: HTMLButtonElement, minimumSize = 0): NoteDraft | null {
+  function getCreationBounds(board: HTMLButtonElement, finalize = false): NoteDraft | null {
     const start = creationStart.current
     if (!start || !board.hasPointerCapture(start.pointerId)) return null
 
@@ -88,13 +85,14 @@ function Board() {
     const y = Math.max(0, Math.min(start.clientY - bounds.top, board.clientHeight))
     const dx = x - start.x
     const dy = y - start.y
-    const resized = performance.now() - start.startedAt > 200
-    const width = resized ? Math.max(minimumSize, Math.abs(dx)) : 200
-    const height = resized ? Math.max(minimumSize, Math.abs(dy)) : 200
+    const isQuickClick = finalize && performance.now() - start.startedAt < 200
+    const minimumSize = finalize ? 100 : 0
+    const width = isQuickClick ? 200 : Math.max(minimumSize, Math.abs(dx))
+    const height = isQuickClick ? 200 : Math.max(minimumSize, Math.abs(dy))
 
     return {
-      x: Math.max(0, Math.min(resized && dx < 0 ? start.x - width : start.x, board.clientWidth - width)),
-      y: Math.max(0, Math.min(resized && dy < 0 ? start.y - height : start.y, board.clientHeight - height)),
+      x: Math.max(0, Math.min(!isQuickClick && dx < 0 ? start.x - width : start.x, board.clientWidth - width)),
+      y: Math.max(0, Math.min(!isQuickClick && dy < 0 ? start.y - height : start.y, board.clientHeight - height)),
       size: { width, height },
     }
   }
@@ -115,9 +113,6 @@ function Board() {
     }
     board.setPointerCapture(event.pointerId)
     setDraftNote(getCreationBounds(board))
-    creationTimer.current = window.setTimeout(() => {
-      setDraftNote(getCreationBounds(board))
-    }, 201)
   }
 
   function handleCreationMove(event: PointerEvent<HTMLButtonElement>) {
@@ -136,7 +131,7 @@ function Board() {
 
     start.clientX = event.clientX
     start.clientY = event.clientY
-    const bounds = getCreationBounds(event.currentTarget, 100)
+    const bounds = getCreationBounds(event.currentTarget, true)
     if (bounds) createNote(bounds)
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
@@ -144,8 +139,6 @@ function Board() {
   }
 
   function clearDraft() {
-    window.clearTimeout(creationTimer.current)
-    creationTimer.current = undefined
     creationStart.current = null
     setDraftNote(null)
   }
