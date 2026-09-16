@@ -1,6 +1,6 @@
 # Sticky Notes
 
-A desktop React + TypeScript app for creating, moving, resizing, editing, and deleting sticky notes. Notes are saved in local storage and restored on reload.
+A desktop app for creating, moving, resizing, coloring, and organizing sticky notes. Your notes are saved in your browser and restored on reload.
 
 Deployed in: https://evinracher.github.io/notes-spa/
 
@@ -53,28 +53,31 @@ This runs all Jest tests once, builds the app, and publishes `dist/` to the `gh-
 npm test
 ```
 
-Use `npm test -- --watch` to rerun tests while editing. Tests live next to the code: `src/utils/notesStorage.test.ts` covers loading and validating saved notes, and `src/components/Board.test.tsx` covers creation, dragging, resizing, deletion, text editing, keyboard controls, and saving changes.
-
-Jest and React Testing Library run in jsdom with simulated dimensions, pointer capture, and timers. These tests check behavior, not visual layout or browser compatibility. `npm run build` also checks TypeScript in the test files.
+Unit tests cover the toolbar's creation button, automatic text contrast, manual colors, color reset, and saved-note validation. Integration tests cover creating, editing, moving, resizing, ordering, deleting, and saving notes. Use `npm test -- --watch` to rerun them while editing.
 
 ## Usage
 
-- **Create:** click Create note, then press and drag on the board. The preview resizes freely immediately. Release before 200 ms for a 200 × 200 note; otherwise, the drawn size is used with a minimum of 100 × 100 applied on release.
+The board starts empty unless you have previously saved notes in this browser.
+
+- **Create:** click Create note, then press and drag on the board. The preview resizes freely immediately. Release before 200 ms for a 200 × 200 note; otherwise, the drawn size is used with a minimum of 160 × 160 applied on release.
+- **Colors:** choose New note color and New text color before creating a note. Dark backgrounds automatically suggest light text unless you choose the text color yourself. Reset colors restores the defaults and automatic suggestions.
+- **Recolor:** open a note's three-dot menu to change its background or text color independently.
+- **Order:** in the three-dot menu, Bring forward moves a note up one layer; Bring to front places it above all other notes.
 - **Move:** drag the note background outside its text area.
 - **Resize:** drag the bottom-right grip.
 - **Edit:** click the text or the empty-note placeholder. Click outside the text to finish editing.
 - **Delete:** drag a note over the trash icon. The note turns translucent red; release to delete it, or move away to keep it.
-- **Keyboard:** use Tab to focus controls. Enter or Space on the placement area creates a centered note. Arrow keys move a focused note or resize it when its grip is focused; Enter or Space drops a focused note.
+- **Keyboard:** use Tab to focus controls. Enter or Space on the placement area creates a centered note. Arrow keys move a focused note or resize it when its grip is focused; Enter or Space drops a focused note. Escape closes the note options.
 
-Changes are saved automatically in the same browser and site address. Clearing site data removes saved notes. If storage is unavailable, editing remains usable and a message indicates that changes cannot be saved.
+Text, colors, positions, sizes, and note order are saved automatically in the same browser and site address. Clearing site data removes saved notes. If storage is unavailable, editing remains usable and a message indicates that changes cannot be saved.
 
 ## Architecture
 
-`Board` keeps the list of notes in React state and handles creating, updating, and deleting them. Each note stores an ID, text, an `x` and `y` position measured in pixels from the board's top-left corner, and a `size` containing its width and height. `NoteList` displays the notes at those positions using absolute positioning. Each `Note` handles user input and calls functions provided by `Board` to update its data. Shared TypeScript types describe this data, and CSS modules keep component styles separate.
+The app uses React and TypeScript. `Board` holds the notes and the colors selected for new notes. `Toolbar` groups the creation controls and handles automatic text contrast, manual color choices, and resetting colors. `NoteList` displays the notes, and each `Note` sends changes back to `Board`. The list runs from back to front: Bring forward moves a note one place along the list, while Bring to front moves it to the end. `NoteMenu` contains each note's color and ordering controls.
 
-When dragging starts, `Note` remembers the pointer's starting position and the note's original position in a React ref. As the pointer moves, it adds the distance travelled to that original position. Resizing works the same way: dragging the bottom-right grip adds the pointer movement to the original width and height, while the top-left corner stays fixed. `Board` applies these updates, keeps notes within its boundaries, and enforces a minimum size of 100 × 100 pixels when resizing existing notes. Pointer capture keeps receiving movement and release events even when the pointer leaves the control. The text area is separate from the drag control, so editing text does not move the note. During a drag, `Board` also checks for overlap with the trash and deletes the note if it is released there.
+Positions are measured from the board's top-left corner. Dragging adds the pointer's movement to the note's starting position. Resizing adds that movement to its starting width and height, keeping the top-left corner fixed. The board limits movement and size to its boundaries, with a minimum note size of 160 × 160. New notes use a preview until release, and notes dropped over the trash are removed.
 
-Creating a note uses a separate preview in state until the pointer is released. The preview can shrink freely; a release before 200 ms creates a default 200 × 200 note, while a longer press uses the drawn size with the minimum applied only on release. Saved notes include their text, position, and size. `Board` writes them to local storage after 200 ms without changes, and also when leaving the page, to avoid saving on every movement or keystroke. On startup, `src/utils/notesStorage.ts` checks the stored data before restoring it and falls back to the initial notes if it is missing or invalid.
+Notes and their order are saved in local storage and checked before being restored. Without valid saved notes, the board starts empty. Component styles use CSS modules, and editing text or using the options menu does not start a drag.
 
 ## Browser support
 

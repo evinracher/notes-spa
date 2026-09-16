@@ -2,18 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent, PointerEvent } from 'react'
 import { FiTrash2 } from 'react-icons/fi'
 import { loadNotes, NOTES_STORAGE_KEY } from '../utils/notesStorage'
+import { DEFAULT_NOTE_COLOR, DEFAULT_TEXT_COLOR, MIN_NOTE_SIZE } from '../constants'
 import type { NoteData, NoteDraft, NotePosition } from '../types/note'
 import { NoteList } from './Notes'
+import { Toolbar } from './Toolbar'
 import styles from './Board.module.css'
 
-const initialNotes: NoteData[] = [
-  { id: '1', text: 'First note', x: 16, y: 16, size: { width: 200, height: 200 } },
-  { id: '2', text: 'Second note', x: 232, y: 16, size: { width: 200, height: 200 } },
-  { id: '3', text: 'Third note', x: 448, y: 16, size: { width: 200, height: 200 } },
-]
-
 function Board() {
-  const [notes, setNotes] = useState(() => loadNotes(initialNotes))
+  const [notes, setNotes] = useState(loadNotes)
+  const [newNoteColor, setNewNoteColor] = useState(DEFAULT_NOTE_COLOR)
+  const [newTextColor, setNewTextColor] = useState(DEFAULT_TEXT_COLOR)
   const [isCreating, setIsCreating] = useState(false)
   const [draftNote, setDraftNote] = useState<NoteDraft | null>(null)
   const creationStart = useRef<(NotePosition & {
@@ -33,7 +31,8 @@ function Board() {
   useEffect(() => {
     function saveNotes() {
       try {
-        localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes))
+        if (notes.length === 0) localStorage.removeItem(NOTES_STORAGE_KEY)
+        else localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes))
         setStorageError(false)
       } catch {
         setStorageError(true)
@@ -57,6 +56,8 @@ function Board() {
     const note: NoteData = {
       id: crypto.randomUUID(),
       text: '',
+      color: newNoteColor,
+      textColor: newTextColor,
       ...bounds,
     }
 
@@ -86,7 +87,7 @@ function Board() {
     const dx = x - start.x
     const dy = y - start.y
     const isQuickClick = finalize && performance.now() - start.startedAt < 200
-    const minimumSize = finalize ? 100 : 0
+    const minimumSize = finalize ? MIN_NOTE_SIZE : 0
     const width = isQuickClick ? 200 : Math.max(minimumSize, Math.abs(dx))
     const height = isQuickClick ? 200 : Math.max(minimumSize, Math.abs(dy))
 
@@ -154,8 +155,8 @@ function Board() {
       currentNotes.map((note) => {
         if (note.id !== id) return note
 
-        const width = Math.max(100, Math.min(boardWidth - note.x, size.width))
-        const height = Math.max(100, Math.min(boardHeight - note.y, size.height))
+        const width = Math.max(MIN_NOTE_SIZE, Math.min(boardWidth - note.x, size.width))
+        const height = Math.max(MIN_NOTE_SIZE, Math.min(boardHeight - note.y, size.height))
 
         return { ...note, size: { width, height } }
       }),
@@ -190,17 +191,31 @@ function Board() {
     if (drop && overlapsTrash) createButtonRef.current?.focus()
   }
 
+  function bringNoteForward(id: string, toFront = false) {
+    setNotes((currentNotes) => {
+      const index = currentNotes.findIndex((note) => note.id === id)
+      if (index < 0 || index === currentNotes.length - 1) return currentNotes
+
+      const reordered = [...currentNotes]
+      const [note] = reordered.splice(index, 1)
+      reordered.splice(toFront ? reordered.length : index + 1, 0, note)
+      return reordered
+    })
+  }
+
   return (
     <>
-      <button
-        ref={createButtonRef}
-        className={styles.createButton}
-        type="button"
-        disabled={isCreating}
-        onClick={() => setIsCreating(true)}
-      >
-        {isCreating ? 'Click to place or hold to resize' : 'Create note'}
-      </button>
+      <Toolbar
+        createButtonRef={createButtonRef}
+        isCreating={isCreating}
+        noteColor={newNoteColor}
+        textColor={newTextColor}
+        onCreate={() => setIsCreating(true)}
+        onColorsChange={(noteColor, textColor) => {
+          setNewNoteColor(noteColor)
+          setNewTextColor(textColor)
+        }}
+      />
       {storageError && <p role="status">Notes could not be saved in this browser.</p>}
       <div ref={boardRef} className={styles.board}>
         <NoteList
@@ -209,6 +224,14 @@ function Board() {
           onTextChange={(id, text) => setNotes((currentNotes) =>
             currentNotes.map((note) => note.id === id ? { ...note, text } : note),
           )}
+          onColorChange={(id, color) => setNotes((currentNotes) =>
+            currentNotes.map((note) => note.id === id ? { ...note, color } : note),
+          )}
+          onTextColorChange={(id, textColor) => setNotes((currentNotes) =>
+            currentNotes.map((note) => note.id === id ? { ...note, textColor } : note),
+          )}
+          onBringForward={(id) => bringNoteForward(id)}
+          onBringToFront={(id) => bringNoteForward(id, true)}
           onResize={handleResizeNote}
           onMove={handleMoveNote}
           onDrop={(id, position) => handleMoveNote(id, position, true)}
@@ -230,6 +253,7 @@ function Board() {
               top: draftNote.y,
               width: draftNote.size.width,
               height: draftNote.size.height,
+              backgroundColor: newNoteColor,
             }}
             aria-hidden="true"
           />

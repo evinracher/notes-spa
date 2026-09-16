@@ -1,12 +1,3 @@
-.createButton {
-  padding: 10px 16px;
-  cursor: pointer;
-}
-
-.createButton:disabled {
-  cursor: default;
-}
-
 .board {
   position: relative;
   min-width: 700px;

@@ -2,7 +2,19 @@ import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globa
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { NOTES_STORAGE_KEY } from '../utils/notesStorage'
+import { DEFAULT_NOTE_COLOR, DEFAULT_TEXT_COLOR } from '../constants'
+import type { NoteData } from '../types/note'
 import Board from './Board'
+
+const savedNotes: NoteData[] = [
+  { id: '1', text: 'First note', color: DEFAULT_NOTE_COLOR, textColor: DEFAULT_TEXT_COLOR, x: 16, y: 16, size: { width: 200, height: 200 } },
+  { id: '2', text: 'Second note', color: DEFAULT_NOTE_COLOR, textColor: DEFAULT_TEXT_COLOR, x: 232, y: 16, size: { width: 200, height: 200 } },
+  { id: '3', text: 'Third note', color: DEFAULT_NOTE_COLOR, textColor: DEFAULT_TEXT_COLOR, x: 448, y: 16, size: { width: 200, height: 200 } },
+]
+
+function saveExampleNotes() {
+  localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(savedNotes))
+}
 
 function setBounds(element: HTMLElement, x: number, y: number, width: number, height: number) {
   Object.defineProperties(element, {
@@ -56,6 +68,13 @@ afterEach(() => {
 })
 
 describe('note creation', () => {
+  test('starts empty and does not save any default notes', () => {
+    renderBoard()
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0)
+    advanceTime(200)
+    expect(localStorage.getItem(NOTES_STORAGE_KEY)).toBeNull()
+  })
+
   test('creates a default-sized note only on release before 200 ms', () => {
     const { board } = renderBoard()
     const placement = startCreation()
@@ -64,19 +83,19 @@ describe('note creation', () => {
     expect(createButton).toBeDisabled()
     pointer(placement, 'down', 140, 180)
     expect(board.querySelector('.preview')).toHaveStyle({ width: '0px', height: '0px' })
-    expect(screen.getAllByRole('listitem')).toHaveLength(3)
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0)
 
     pointer(placement, 'move', 170, 220)
     expect(board.querySelector('.preview')).toHaveStyle({ width: '30px', height: '40px' })
     advanceTime(199)
-    expect(screen.getAllByRole('listitem')).toHaveLength(3)
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0)
     pointer(placement, 'up', 170, 220)
 
     const text = screen.getByDisplayValue('')
     expect(text).toHaveAttribute('placeholder', 'Click to edit note text')
     expect(text.closest('li')).toHaveStyle({ left: '100px', top: '100px' })
     expect(text.parentElement).toHaveStyle({ width: '200px', height: '200px' })
-    expect(screen.getAllByRole('listitem')).toHaveLength(4)
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
     expect(board.querySelector('.preview')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create note' })).toBeEnabled()
   })
@@ -92,11 +111,11 @@ describe('note creation', () => {
     expect(board.querySelector('.preview')).toHaveStyle({ width: '60px', height: '70px' })
     pointer(placement, 'move', 150, 200)
     expect(board.querySelector('.preview')).toHaveStyle({ width: '10px', height: '20px' })
-    expect(screen.getAllByRole('listitem')).toHaveLength(3)
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0)
     pointer(placement, 'up', 150, 200)
 
     const text = screen.getByDisplayValue('')
-    expect(text.parentElement).toHaveStyle({ width: '100px', height: '100px' })
+    expect(text.parentElement).toHaveStyle({ width: '160px', height: '160px' })
     expect(text.closest('li')).toHaveStyle({ left: '100px', top: '100px' })
   })
 
@@ -136,11 +155,13 @@ describe('note creation', () => {
     pointer(placement, 'cancel', 400, 400)
 
     expect(board.querySelector('.preview')).not.toBeInTheDocument()
-    expect(screen.getAllByRole('listitem')).toHaveLength(3)
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0)
   })
 })
 
 describe('moving and resizing notes', () => {
+  beforeEach(saveExampleNotes)
+
   test('moves a note by the pointer distance and stops updating after release', () => {
     renderBoard()
     const drag = screen.getByRole('button', { name: /^First note\. Drag/ })
@@ -190,7 +211,7 @@ describe('moving and resizing notes', () => {
 
     pointer(resize, 'down', 256, 296)
     pointer(resize, 'move', 70, 110)
-    expect(text.parentElement).toHaveStyle({ width: '100px', height: '100px' })
+    expect(text.parentElement).toHaveStyle({ width: '160px', height: '160px' })
     pointer(resize, 'move', 2000, 2000)
     expect(text.parentElement).toHaveStyle({ width: '984px', height: '684px' })
     pointer(resize, 'up', 2000, 2000)
@@ -199,6 +220,8 @@ describe('moving and resizing notes', () => {
 })
 
 describe('trash', () => {
+  beforeEach(saveExampleNotes)
+
   test('marks an overlapping note and deletes it only when released over the trash', () => {
     renderBoard()
     const drag = screen.getByRole('button', { name: /^First note\. Drag/ })
@@ -233,6 +256,8 @@ describe('trash', () => {
 })
 
 describe('editing and persistence', () => {
+  beforeEach(saveExampleNotes)
+
   test('edits text without moving the note, including pointer movement over the text', async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
     renderBoard()
@@ -344,4 +369,237 @@ test('creates, moves and resizes a note using the keyboard', async () => {
   expect(within(item).getByRole('button', { name: /Resize note/ })).toHaveFocus()
   await user.keyboard('{ArrowRight}{ArrowDown}')
   expect(text.parentElement).toHaveStyle({ width: '210px', height: '210px' })
+})
+
+describe('note colors and order', () => {
+  test.each([
+    ['#121212', '#ffffff'],
+    ['#000066', '#ffffff'],
+    ['#ffffcc', DEFAULT_TEXT_COLOR],
+  ])('suggests readable text for %s when creating a note', (background, expectedTextColor) => {
+    renderBoard()
+    fireEvent.change(screen.getByLabelText('New note color'), { target: { value: background } })
+    expect(screen.getByLabelText('New text color')).toHaveValue(expectedTextColor)
+    const placement = startCreation()
+    pointer(placement, 'down', 140, 180)
+    pointer(placement, 'up', 140, 180)
+
+    const note = screen.getByDisplayValue('').parentElement
+    expect(note).toHaveStyle({ backgroundColor: background, color: expectedTextColor })
+    fireEvent.change(screen.getByLabelText('New note color'), { target: { value: '#ffffff' } })
+    expect(screen.getByLabelText('New text color')).toHaveValue(DEFAULT_TEXT_COLOR)
+    expect(note).toHaveStyle({ backgroundColor: background, color: expectedTextColor })
+  })
+
+  test('preserves a manually selected text color when the creation background changes', () => {
+    renderBoard()
+    fireEvent.change(screen.getByLabelText('New text color'), { target: { value: '#aa4422' } })
+    fireEvent.change(screen.getByLabelText('New note color'), { target: { value: '#000000' } })
+    expect(screen.getByLabelText('New text color')).toHaveValue('#aa4422')
+    const placement = startCreation()
+    pointer(placement, 'down', 140, 180)
+    pointer(placement, 'up', 140, 180)
+
+    expect(screen.getByDisplayValue('').parentElement).toHaveStyle({ backgroundColor: '#000000', color: '#aa4422' })
+    fireEvent.change(screen.getByLabelText('New note color'), { target: { value: '#ffffff' } })
+    expect(screen.getByLabelText('New text color')).toHaveValue('#aa4422')
+    advanceTime(200)
+    expect(JSON.parse(localStorage.getItem(NOTES_STORAGE_KEY)!)).toEqual([
+      expect.objectContaining({ color: '#000000', textColor: '#aa4422' }),
+    ])
+  })
+
+  test('resets creation colors and enables automatic text contrast again without changing existing notes', () => {
+    const existingNote = { ...savedNotes[0], color: '#111111', textColor: '#ccffaa' }
+    localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify([existingNote]))
+    renderBoard()
+    fireEvent.change(screen.getByLabelText('New note color'), { target: { value: '#000000' } })
+    fireEvent.change(screen.getByLabelText('New text color'), { target: { value: '#ccffaa' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Reset colors' }))
+
+    expect(screen.getByLabelText('New note color')).toHaveValue(DEFAULT_NOTE_COLOR)
+    expect(screen.getByLabelText('New text color')).toHaveValue(DEFAULT_TEXT_COLOR)
+    const placement = startCreation()
+    pointer(placement, 'down', 140, 180)
+    pointer(placement, 'up', 140, 180)
+    expect(screen.getByDisplayValue('').parentElement).toHaveStyle({ backgroundColor: DEFAULT_NOTE_COLOR, color: DEFAULT_TEXT_COLOR })
+    fireEvent.change(screen.getByLabelText('New note color'), { target: { value: '#000000' } })
+    expect(screen.getByLabelText('New text color')).toHaveValue('#ffffff')
+    expect(screen.getByDisplayValue('First note').parentElement).toHaveStyle({ backgroundColor: '#111111', color: '#ccffaa' })
+  })
+
+  test('changes existing note colors independently and restores both on reload', () => {
+    saveExampleNotes()
+    const { unmount } = renderBoard()
+    const note = screen.getByDisplayValue('First note').parentElement!
+    fireEvent.click(within(note).getByRole('button', { name: 'Note options' }))
+    fireEvent.change(within(note).getByLabelText('Change color'), { target: { value: '#000000' } })
+    expect(note).toHaveStyle({ backgroundColor: '#000000', color: DEFAULT_TEXT_COLOR })
+    fireEvent.change(within(note).getByLabelText('Text color'), { target: { value: '#ffccaa' } })
+    expect(note).toHaveStyle({ backgroundColor: '#000000', color: '#ffccaa' })
+    fireEvent.change(within(note).getByLabelText('Change color'), { target: { value: '#000066' } })
+    expect(note).toHaveStyle({ backgroundColor: '#000066', color: '#ffccaa' })
+    expect(screen.getByDisplayValue('Second note').parentElement).toHaveStyle({ color: DEFAULT_TEXT_COLOR })
+    expect(screen.getByLabelText('New text color')).toHaveValue(DEFAULT_TEXT_COLOR)
+    advanceTime(200)
+    unmount()
+    renderBoard()
+
+    expect(screen.getByDisplayValue('First note').parentElement).toHaveStyle({ backgroundColor: '#000066', color: '#ffccaa' })
+  })
+
+  test('uses the selected color for the preview and newly created notes', () => {
+    renderBoard()
+    const colorPicker = screen.getByLabelText('New note color')
+    expect(colorPicker).toHaveValue(DEFAULT_NOTE_COLOR)
+    fireEvent.change(colorPicker, { target: { value: '#80cfff' } })
+    const placement = startCreation()
+    pointer(placement, 'down', 140, 180)
+    pointer(placement, 'move', 180, 220)
+    expect(document.querySelector('.preview')).toHaveStyle({ backgroundColor: '#80cfff' })
+    pointer(placement, 'up', 180, 220)
+
+    const text = screen.getByDisplayValue('')
+    expect(text.parentElement).toHaveStyle({ backgroundColor: '#80cfff' })
+    fireEvent.change(colorPicker, { target: { value: '#ffaaaa' } })
+    expect(text.parentElement).toHaveStyle({ backgroundColor: '#80cfff' })
+    advanceTime(200)
+    expect(JSON.parse(localStorage.getItem(NOTES_STORAGE_KEY)!)).toEqual([
+      expect.objectContaining({ color: '#80cfff' }),
+    ])
+  })
+
+  test('changes only the selected note color without changing its position or creation color', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+    saveExampleNotes()
+    renderBoard()
+    const text = screen.getByDisplayValue('First note')
+    const item = text.closest('li')!
+    await user.click(within(item).getByRole('button', { name: 'Note options' }))
+    const picker = within(item).getByLabelText('Change color')
+    await user.click(picker)
+    fireEvent.change(picker, { target: { value: '#80cfff' } })
+
+    expect(text.parentElement).toHaveStyle({ backgroundColor: '#80cfff' })
+    expect(item).toHaveStyle({ left: '16px', top: '16px' })
+    expect(screen.getByDisplayValue('Second note').parentElement).toHaveStyle({ backgroundColor: DEFAULT_NOTE_COLOR })
+    expect(screen.getByLabelText('New note color')).toHaveValue(DEFAULT_NOTE_COLOR)
+  })
+
+  test('restores a note color after moving away from the trash', () => {
+    localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify([{ ...savedNotes[0], color: '#80cfff' }]))
+    renderBoard()
+    const drag = screen.getByRole('button', { name: /^First note\. Drag/ })
+    pointer(drag, 'down', 70, 110)
+    pointer(drag, 'move', 854, 394)
+    expect(drag.parentElement).toHaveClass('overTrash')
+    expect(drag.parentElement?.style.backgroundColor).toBe('')
+    pointer(drag, 'move', 170, 190)
+    pointer(drag, 'up', 170, 190)
+
+    expect(drag.parentElement).not.toHaveClass('overTrash')
+    expect(drag.parentElement).toHaveStyle({ backgroundColor: '#80cfff' })
+  })
+
+  test.each([
+    ['Bring forward', ['Second note', 'First note', 'Third note']],
+    ['Bring to front', ['Second note', 'Third note', 'First note']],
+  ])('%s updates the stacking order and preserves the notes', (action, expectedOrder) => {
+    const overlapping = savedNotes.map((note) => ({ ...note, x: 16, y: 16 }))
+    localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(overlapping))
+    renderBoard()
+    const item = screen.getByDisplayValue('First note').closest('li')!
+    const options = within(item).getByRole('button', { name: 'Note options' })
+    fireEvent.click(options)
+    fireEvent.click(within(item).getByRole('button', { name: action }))
+
+    expect(screen.getAllByRole<HTMLTextAreaElement>('textbox').map((text) => text.value)).toEqual(expectedOrder)
+    expect(item).toHaveStyle({ left: '16px', top: '16px' })
+    expect(options).toHaveAttribute('aria-expanded', 'false')
+    expect(options).toHaveFocus()
+    advanceTime(200)
+    const stored = JSON.parse(localStorage.getItem(NOTES_STORAGE_KEY)!) as NoteData[]
+    expect(stored).toEqual(expectedOrder.map((text) => overlapping.find((note) => note.text === text)))
+  })
+
+  test.each(['Bring forward', 'Bring to front'])('%s leaves the frontmost note in place', (action) => {
+    saveExampleNotes()
+    renderBoard()
+    const item = screen.getByDisplayValue('Third note').closest('li')!
+    fireEvent.click(within(item).getByRole('button', { name: 'Note options' }))
+    fireEvent.click(within(item).getByRole('button', { name: action }))
+
+    expect(screen.getAllByRole<HTMLTextAreaElement>('textbox').map((text) => text.value)).toEqual([
+      'First note', 'Second note', 'Third note',
+    ])
+  })
+
+  test('restores a changed color and stacking order after reload', () => {
+    saveExampleNotes()
+    const { unmount } = renderBoard()
+    const item = screen.getByDisplayValue('First note').closest('li')!
+    fireEvent.click(within(item).getByRole('button', { name: 'Note options' }))
+    fireEvent.change(within(item).getByLabelText('Change color'), { target: { value: '#aabbcc' } })
+    fireEvent.click(within(item).getByRole('button', { name: 'Bring to front' }))
+    advanceTime(200)
+    unmount()
+    renderBoard()
+
+    expect(screen.getAllByRole<HTMLTextAreaElement>('textbox').map((text) => text.value)).toEqual([
+      'Second note', 'Third note', 'First note',
+    ])
+    expect(screen.getByDisplayValue('First note').parentElement).toHaveStyle({ backgroundColor: '#aabbcc' })
+  })
+
+  test('opens the options with the keyboard and closes them with Escape or an outside click', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+    saveExampleNotes()
+    renderBoard()
+    const options = within(screen.getByDisplayValue('First note').closest('li')!).getByRole('button', { name: 'Note options' })
+    act(() => options.focus())
+    await user.keyboard('{Enter}')
+    expect(options).toHaveAttribute('aria-expanded', 'true')
+    await user.tab()
+    expect(screen.getByLabelText('Change color')).toHaveFocus()
+    await user.tab()
+    expect(screen.getByLabelText('Text color')).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Bring forward' })).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(options).toHaveFocus()
+    expect(options).toHaveAttribute('aria-expanded', 'false')
+
+    await user.click(options)
+    await user.click(screen.getByDisplayValue('Second note'))
+    expect(options).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByLabelText('Change color')).not.toBeInTheDocument()
+
+    await user.click(options)
+    await user.tab()
+    await user.tab()
+    await user.tab()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Bring to front' })).toHaveFocus()
+    await user.tab()
+    expect(options).toHaveAttribute('aria-expanded', 'false')
+  })
+})
+
+test('keeps the board empty after the last created note is deleted and the page reloads', () => {
+  const { unmount } = renderBoard()
+  const placement = startCreation()
+  pointer(placement, 'down', 56, 96)
+  pointer(placement, 'up', 56, 96)
+  advanceTime(200)
+  expect(localStorage.getItem(NOTES_STORAGE_KEY)).not.toBeNull()
+  const drag = screen.getByRole('button', { name: /^Empty note\. Drag/ })
+  pointer(drag, 'down', 70, 110)
+  pointer(drag, 'move', 854, 394)
+  pointer(drag, 'up', 854, 394)
+  advanceTime(200)
+  expect(localStorage.getItem(NOTES_STORAGE_KEY)).toBeNull()
+  unmount()
+  renderBoard()
+
+  expect(screen.queryAllByRole('listitem')).toHaveLength(0)
 })

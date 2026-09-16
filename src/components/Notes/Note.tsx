@@ -1,9 +1,11 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
 import type { NoteData, NotePosition, NoteProps } from '../../types/note'
+import { getDefaultTextColor } from '../../utils/colors'
+import NoteMenu from './NoteMenu'
 import styles from './Note.module.css'
 
-function Note({ note, isOverTrash, onTextChange, onResize, onMove, onDrop, onDragCancel }: NoteProps) {
+function Note({ note, isOverTrash, onTextChange, onColorChange, onTextColorChange, onBringForward, onBringToFront, onResize, onMove, onDrop, onDragCancel }: NoteProps) {
   const { text, size } = note
   const [isEditing, setIsEditing] = useState(false)
   const textRef = useRef<HTMLTextAreaElement>(null)
@@ -26,7 +28,7 @@ function Note({ note, isOverTrash, onTextChange, onResize, onMove, onDrop, onDra
     textarea.style.height = 'auto'
     textarea.style.overflowY = 'hidden'
     // Leave one pixel for browsers that round fractional line heights.
-    textarea.style.height = `${Math.min(textarea.scrollHeight + 1, size.height - 32)}px`
+    textarea.style.height = `${Math.min(textarea.scrollHeight + 1, size.height - 48)}px`
     textarea.style.overflowY = 'auto'
   }, [text, size.width, size.height])
 
@@ -161,7 +163,7 @@ function Note({ note, isOverTrash, onTextChange, onResize, onMove, onDrop, onDra
   return (
     <div
       className={`${styles.note}${isOverTrash ? ` ${styles.overTrash}` : ''}`}
-      style={{ width: size.width, height: size.height }}
+      style={{ width: size.width, height: size.height, backgroundColor: isOverTrash ? undefined : note.color, color: note.textColor }}
     >
       <button
         type="button"
@@ -190,6 +192,7 @@ function Note({ note, isOverTrash, onTextChange, onResize, onMove, onDrop, onDra
       <button
         type="button"
         className={styles.resize}
+        style={{ color: getDefaultTextColor(note.color) }}
         aria-label="Resize note. Drag or use the arrow keys."
         title="Resize note"
         onPointerDown={handlePointerDown}
@@ -200,6 +203,14 @@ function Note({ note, isOverTrash, onTextChange, onResize, onMove, onDrop, onDra
           resizeStart.current = null
         }}
         onKeyDown={handleKeyDown}
+      />
+      <NoteMenu
+        color={note.color}
+        textColor={note.textColor}
+        onColorChange={onColorChange}
+        onTextColorChange={onTextColorChange}
+        onBringForward={onBringForward}
+        onBringToFront={onBringToFront}
       />
     </div>
   )
