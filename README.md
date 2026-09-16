@@ -2,6 +2,8 @@
 
 A desktop React + TypeScript app for creating, moving, resizing, editing, and deleting sticky notes. Notes are saved in local storage and restored on reload.
 
+Deployed in: https://evinracher.github.io/notes-spa/
+
 ## Requirements
 
 - Node.js 22.12 or newer, with npm.
@@ -18,7 +20,7 @@ npm ci
 npm run dev
 ```
 
-`npm ci` installs the dependencies from `package-lock.json`. Open the local URL printed by Vite, normally `http://localhost:5173`. If that port is occupied, use the alternative URL shown in the terminal. Press Ctrl+C to stop the server.
+`npm ci` installs the dependencies from `package-lock.json`. Open the local URL printed by Vite, normally `http://localhost:5173/notes-spa/`. If that port is occupied, use the alternative URL shown in the terminal. Press Ctrl+C to stop the server.
 
 ## Build and preview
 
@@ -27,13 +29,33 @@ npm run build
 npm run preview
 ```
 
-The build checks TypeScript and generates the production files in `dist/`. Open the URL printed by the preview server, normally `http://localhost:4173`. Preview serves the existing build; run the build command again after making changes.
+The build checks TypeScript and generates the production files in `dist/`. Open the URL printed by the preview server, normally `http://localhost:4173/notes-spa/`. Preview serves the existing build; run the build command again after making changes.
 
 To check code with the linter:
 
 ```sh
 npm run lint
 ```
+
+## Deploy to GitHub Pages
+
+With Git installed and authenticated to push to the `origin` repository, run:
+
+```sh
+npm run deploy
+```
+
+This runs all Jest tests once, builds the app, and publishes `dist/` to the `gh-pages` branch. If the tests or build fail, publishing does not run.
+
+## Tests
+
+```sh
+npm test
+```
+
+Use `npm test -- --watch` to rerun tests while editing. Tests live next to the code: `src/utils/notesStorage.test.ts` covers loading and validating saved notes, and `src/components/Board.test.tsx` covers creation, dragging, resizing, deletion, text editing, keyboard controls, and saving changes.
+
+Jest and React Testing Library run in jsdom with simulated dimensions, pointer capture, and timers. These tests check behavior, not visual layout or browser compatibility. `npm run build` also checks TypeScript in the test files.
 
 ## Usage
 
@@ -52,7 +74,7 @@ Changes are saved automatically in the same browser and site address. Clearing s
 
 When dragging starts, `Note` remembers the pointer's starting position and the note's original position in a React ref. As the pointer moves, it adds the distance travelled to that original position. Resizing works the same way: dragging the bottom-right grip adds the pointer movement to the original width and height, while the top-left corner stays fixed. `Board` applies these updates, keeps notes within its boundaries, and enforces a minimum size of 100 × 100 pixels when resizing existing notes. Pointer capture keeps receiving movement and release events even when the pointer leaves the control. The text area is separate from the drag control, so editing text does not move the note. During a drag, `Board` also checks for overlap with the trash and deletes the note if it is released there.
 
-Creating a note uses a separate preview in state until the pointer is released. The preview can shrink freely; a release before 200 ms creates a default 200 × 200 note, while a longer press uses the drawn size with the minimum applied only on release. Saved notes include their text, position, and size. `Board` writes them to local storage after 200 ms without changes, and also when leaving the page, to avoid saving on every movement or keystroke. On startup, `notesStorage.ts` checks the stored data before restoring it and falls back to the initial notes if it is missing or invalid.
+Creating a note uses a separate preview in state until the pointer is released. The preview can shrink freely; a release before 200 ms creates a default 200 × 200 note, while a longer press uses the drawn size with the minimum applied only on release. Saved notes include their text, position, and size. `Board` writes them to local storage after 200 ms without changes, and also when leaving the page, to avoid saving on every movement or keystroke. On startup, `src/utils/notesStorage.ts` checks the stored data before restoring it and falls back to the initial notes if it is missing or invalid.
 
 ## Browser support
 

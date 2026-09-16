@@ -1,4 +1,4 @@
-import type { NoteData } from './types/note'
+import type { NoteData } from '../types/note'
 
 export const NOTES_STORAGE_KEY = 'sticky-notes'
 
