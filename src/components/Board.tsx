@@ -203,6 +203,18 @@ function Board() {
     })
   }
 
+  // Mover hacia atrás
+  function moveNoteBackward(id: string, toBack = false) {
+    setNotes((currentNotes) => {
+      const index = currentNotes.findIndex((note) => note.id === id)
+
+      const reordered = [...currentNotes]
+      const [note] = reordered.splice(index, 1)
+      reordered.splice(toBack ? 0 : index - 1, 0, note)
+      return reordered
+    })
+  }
+
   return (
     <>
       <Toolbar
@@ -211,6 +223,12 @@ function Board() {
         noteColor={newNoteColor}
         textColor={newTextColor}
         onCreate={() => setIsCreating(true)}
+        onRemoveAll={() => {
+          setNotes([])
+          setTrashNoteId(null)
+          setIsCreating(false)
+          clearDraft()
+        }}
         onColorsChange={(noteColor, textColor) => {
           setNewNoteColor(noteColor)
           setNewTextColor(textColor)
@@ -232,6 +250,8 @@ function Board() {
           )}
           onBringForward={(id) => bringNoteForward(id)}
           onBringToFront={(id) => bringNoteForward(id, true)}
+          onMoveBackward={(id) => moveNoteBackward(id)}
+          onSendToBack={(id) => moveNoteBackward(id, true)}
           onResize={handleResizeNote}
           onMove={handleMoveNote}
           onDrop={(id, position) => handleMoveNote(id, position, true)}
