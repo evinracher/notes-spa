@@ -5,7 +5,7 @@ import { getDefaultTextColor } from '../../utils/colors'
 import NoteMenu from './NoteMenu'
 import styles from './Note.module.css'
 
-function Note({ note, isOverTrash, onTextChange, onColorChange, onTextColorChange, onBringForward, onBringToFront, onResize, onMove, onDrop, onDragCancel }: NoteProps) {
+function Note({ note, isOverTrash, onTextChange, onColorChange, onTextColorChange, onBringForward, onBringToFront, onMoveBackward, onSendToBack, onResize, onMove, onDrop, onDragCancel }: NoteProps) {
   const { text, size } = note
   const [isEditing, setIsEditing] = useState(false)
   const textRef = useRef<HTMLTextAreaElement>(null)
@@ -211,6 +211,8 @@ function Note({ note, isOverTrash, onTextChange, onColorChange, onTextColorChang
         onTextColorChange={onTextColorChange}
         onBringForward={onBringForward}
         onBringToFront={onBringToFront}
+        onMoveBackward={onMoveBackward}
+        onSendToBack={onSendToBack}
       />
     </div>
   )

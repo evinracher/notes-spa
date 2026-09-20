@@ -5,7 +5,7 @@ import { getDefaultTextColor } from '../../utils/colors'
 import ColorPicker from '../ColorPicker'
 import styles from './Note.module.css'
 
-function NoteMenu({ color, textColor, onColorChange, onTextColorChange, onBringForward, onBringToFront }: NoteMenuProps) {
+function NoteMenu({ color, textColor, onColorChange, onTextColorChange, onBringForward, onBringToFront, onMoveBackward, onSendToBack }: NoteMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -72,6 +72,12 @@ function NoteMenu({ color, textColor, onColorChange, onTextColorChange, onBringF
           </button>
           <button type="button" className={styles.menuItem} onClick={() => changeOrder(onBringToFront)}>
             Bring to front
+          </button>
+          <button type="button" className={styles.menuItem} onClick={() => changeOrder(onMoveBackward)}>
+            Move backward
+          </button>
+          <button type="button" className={styles.menuItem} onClick={() => changeOrder(onSendToBack)}>
+            Send to back
           </button>
         </div>
       )}

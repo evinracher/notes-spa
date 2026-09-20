@@ -23,6 +23,8 @@ export type NoteProps = {
   onTextColorChange: (color: string) => void
   onBringForward: () => void
   onBringToFront: () => void
+  onMoveBackward: () => void
+  onSendToBack: () => void
   onResize: (size: NoteData['size']) => void
   onMove: (position: NotePosition) => void
   onDrop: (position: NotePosition) => void
@@ -37,13 +39,15 @@ export type NoteListProps = {
   onTextColorChange: (id: string, color: string) => void
   onBringForward: (id: string) => void
   onBringToFront: (id: string) => void
+  onMoveBackward: (id: string) => void
+  onSendToBack: (id: string) => void
   onResize: (id: string, size: NoteData['size']) => void
   onMove: (id: string, position: NotePosition) => void
   onDrop: (id: string, position: NotePosition) => void
   onDragCancel: () => void
 }
 
-export type NoteMenuProps = Pick<NoteProps, 'onColorChange' | 'onTextColorChange' | 'onBringForward' | 'onBringToFront'> & {
+export type NoteMenuProps = Pick<NoteProps, 'onColorChange' | 'onTextColorChange' | 'onBringForward' | 'onBringToFront' | 'onMoveBackward' | 'onSendToBack'> & {
   color: string
   textColor: string
 }

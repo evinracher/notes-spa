@@ -5,7 +5,7 @@ import { getDefaultTextColor } from '../../utils/colors'
 import ColorPicker from '../ColorPicker'
 import styles from './Toolbar.module.css'
 
-function Toolbar({ createButtonRef, isCreating, noteColor, textColor, onCreate, onColorsChange }: ToolbarProps) {
+function Toolbar({ createButtonRef, isCreating, noteColor, textColor, onCreate, onRemoveAll, onColorsChange }: ToolbarProps) {
   const [hasCustomTextColor, setHasCustomTextColor] = useState(false)
 
   return (
@@ -41,6 +41,9 @@ function Toolbar({ createButtonRef, isCreating, noteColor, textColor, onCreate, 
         }}
       >
         Reset colors
+      </button>
+      <button type="button" className={styles.removeAll} onClick={onRemoveAll}>
+        Remove all notes
       </button>
     </div>
   )
