@@ -1,6 +1,6 @@
 # Sticky Notes
 
-A desktop app for creating, moving, resizing, coloring, and organizing sticky notes. Your notes are saved in your browser and restored on reload.
+A desktop app for creating, moving, resizing, coloring, and organizing sticky notes. Your notes are saved in your browser local storage and restored on reload.
 
 Deployed in: https://evinracher.github.io/notes-spa/
 
